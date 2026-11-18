@@ -1,11 +1,14 @@
 import browser from 'webextension-polyfill';
 
+import { GEMINI_PREVIEW_EXPORT } from '@/core/gemini/previewExport';
 import { StorageKeys } from '@/core/types/common';
 import { getVoyagerBuildTarget } from '@/core/utils/browser';
 import {
   SAFARI_CLIPBOARD_IMAGE_COPY_REQUEST,
   copySafariNativeImagePng,
 } from '@/core/utils/safariNativeClipboard';
+
+import { readGeminiPreviews } from './geminiPreviewExport';
 const GENERATED_UI_CAPTURE_PERMISSION_ORIGINS = ['<all_urls>'];
 
 export function createGeneratedUiCapture(reconcile: {
@@ -73,6 +76,7 @@ export function createGeneratedUiCapture(reconcile: {
     message: { type: string; payload?: unknown },
     sender: chrome.runtime.MessageSender,
   ): Promise<unknown> | null {
+    if (message.type === GEMINI_PREVIEW_EXPORT) return readGeminiPreviews(message.payload, sender);
     if (
       message.type !== 'gv.generatedUi.ensureCapturePermission' &&
       message.type !== 'gv.generatedUi.captureVisibleTab' &&

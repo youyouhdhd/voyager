@@ -20,6 +20,7 @@ import { PDFPrintService } from './PDFPrintService';
 import { MAX_EXPORT_IMAGE_TOTAL_BYTES, fetchBoundedExportImage } from './boundedImageFetch';
 import { packageMarkdownImages } from './markdownImageArchive';
 import { stripMarkdownImages } from './markdownTextOnly';
+import { type MarkdownWebPreviewFile, prepareMarkdownWebPreviews } from './markdownWebPreviews';
 
 /**
  * Main export service
@@ -107,13 +108,17 @@ export class ConversationExportService {
     metadata: ConversationMetadata,
     options: ExportOptions,
   ): Promise<ExportResult> {
-    const content = this.extractDocumentContent(turns);
+    const prepared =
+      options.format === 'markdown' && !options.markdownTextOnly
+        ? prepareMarkdownWebPreviews(turns)
+        : { turns, files: [] };
+    const content = this.extractDocumentContent(prepared.turns);
 
     switch (options.format) {
       case 'json':
         return this.exportDocumentJSON(content, metadata, options);
       case 'markdown':
-        return await this.exportDocumentMarkdown(content, metadata, options);
+        return await this.exportDocumentMarkdown(content, metadata, options, prepared.files);
       case 'pdf':
         return await this.exportDocumentPDF(content, metadata, options);
       case 'image':
@@ -144,6 +149,7 @@ export class ConversationExportService {
         assistant: turn.assistantContent?.text || turn.assistant,
         starred: turn.starred,
         ...(attachments.length > 0 ? { attachments } : {}),
+        ...(turn.webPreviews?.length ? { webPreviews: turn.webPreviews } : {}),
       };
     });
 
@@ -176,8 +182,11 @@ export class ConversationExportService {
     metadata: ConversationMetadata,
     options: ExportOptions,
   ): Promise<ExportResult> {
+    const prepared = options.markdownTextOnly
+      ? { turns, files: [] }
+      : prepareMarkdownWebPreviews(turns);
     // First create a clean markdown (no inlining)
-    let markdown = MarkdownFormatter.format(turns, metadata, {
+    let markdown = MarkdownFormatter.format(prepared.turns, metadata, {
       usePromptAsTurnHeading: options.usePromptAsTurnHeading,
       speakerLabels: options.speakerLabels,
     });
@@ -195,6 +204,7 @@ export class ConversationExportService {
       'chat.md',
       options.signal,
       options.markdownTextOnly,
+      prepared.files,
     );
     return {
       success: true,
@@ -248,7 +258,7 @@ export class ConversationExportService {
   }
 
   private static exportDocumentJSON(
-    content: { markdown: string; html: string },
+    content: { markdown: string; html: string; webPreviews?: ChatTurn['webPreviews'] },
     metadata: ConversationMetadata,
     options: ExportOptions,
   ): ExportResult {
@@ -260,6 +270,7 @@ export class ConversationExportService {
       content: {
         markdown: content.markdown,
         html: content.html,
+        ...(content.webPreviews?.length ? { webPreviews: content.webPreviews } : {}),
       },
     };
 
@@ -278,6 +289,7 @@ export class ConversationExportService {
     content: { markdown: string; html: string },
     metadata: ConversationMetadata,
     options: ExportOptions,
+    files: readonly MarkdownWebPreviewFile[],
   ): Promise<ExportResult> {
     const markdown = this.composeDocumentMarkdown(content.markdown, metadata);
     const filename =
@@ -292,6 +304,7 @@ export class ConversationExportService {
       mdEntryName,
       options.signal,
       options.markdownTextOnly,
+      files,
     );
     return {
       success: true,
@@ -354,7 +367,11 @@ export class ConversationExportService {
     };
   }
 
-  private static extractDocumentContent(turns: ChatTurn[]): { markdown: string; html: string } {
+  private static extractDocumentContent(turns: ChatTurn[]): {
+    markdown: string;
+    html: string;
+    webPreviews?: ChatTurn['webPreviews'];
+  } {
     const turn =
       turns.find((item) => item.assistantContent || item.assistant.trim()) ||
       turns.find((item) => item.userContent || item.user.trim());
@@ -368,6 +385,7 @@ export class ConversationExportService {
       return {
         markdown: extracted.text || turn.assistant,
         html: extracted.html || this.formatPlainTextAsHtml(extracted.text || turn.assistant),
+        webPreviews: turn.webPreviews,
       };
     }
 
@@ -425,6 +443,7 @@ export class ConversationExportService {
     markdownEntryName: string,
     signal?: AbortSignal,
     textOnly = false,
+    webPreviewFiles: readonly MarkdownWebPreviewFile[] = [],
   ): Promise<{ filename: string; omittedImageCount: number }> {
     this.assertNotAborted(signal);
     const normalizedFilename = filename.toLowerCase().endsWith('.md') ? filename : `${filename}.md`;
@@ -432,7 +451,7 @@ export class ConversationExportService {
       MarkdownFormatter.download(stripMarkdownImages(markdown), normalizedFilename);
       return { filename: normalizedFilename, omittedImageCount: 0 };
     }
-    if (MarkdownFormatter.extractImageUrls(markdown).length === 0) {
+    if (webPreviewFiles.length === 0 && MarkdownFormatter.extractImageUrls(markdown).length === 0) {
       MarkdownFormatter.download(markdown, normalizedFilename);
       return { filename: normalizedFilename, omittedImageCount: 0 };
     }
@@ -441,6 +460,7 @@ export class ConversationExportService {
       markdown,
       normalizedFilename,
       markdownEntryName,
+      webPreviewFiles,
       signal,
       fetchImage: (url, budget, fetchSignal) =>
         this.fetchImageForMarkdownPackaging(url, budget, fetchSignal),

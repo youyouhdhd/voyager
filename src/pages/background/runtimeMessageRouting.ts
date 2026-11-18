@@ -1,3 +1,4 @@
+import { GEMINI_PREVIEW_EXPORT } from '@/core/gemini/previewExport';
 import { NOTIFICATION_ENABLEMENT_MESSAGE } from '@/core/types/notificationEnablement';
 import type { SyncPlatform } from '@/core/types/sync';
 import { FORM_FACTOR_MESSAGE } from '@/core/utils/formFactor';
@@ -118,6 +119,7 @@ const HANDLED_BACKGROUND_MESSAGE_TYPES = new Set([
   'gv.fetchImageViaPage',
   'gv.generatedUi.ensureCapturePermission',
   'gv.generatedUi.captureVisibleTab',
+  GEMINI_PREVIEW_EXPORT,
   PLUGIN_CONTENT_SCRIPT_SYNC_MESSAGE,
   PLUGIN_CATALOG_REFRESH_MESSAGE,
   PLUGIN_SET_SETTING_MESSAGE,

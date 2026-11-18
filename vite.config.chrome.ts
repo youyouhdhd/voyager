@@ -131,7 +131,15 @@ export const chromeManifest = {
   // Browser-managed MAIN-world scripts avoid Gemini's Trusted Types/CSP
   // blocking the old DOM <script src="chrome-extension://..."> bridge. Edge
   // builds reuse this manifest, so keep the observers statically registered.
-  content_scripts: [...(chromeSharedContentScripts ?? []), ...chromeMainWorldObservers],
+  content_scripts: [
+    ...(chromeSharedContentScripts ?? []),
+    ...chromeMainWorldObservers,
+    {
+      matches: ['https://*.scf.usercontent.goog/gemini-code-immersive/shim.html*'],
+      js: ['src/pages/content/geminiPreviewEntry.ts'],
+      all_frames: true,
+    },
+  ],
   // declarativeContent is Chrome/Edge-only (absent on Firefox/Safari).
   // Injected here so the shared base manifest stays cross-browser clean.
   permissions: [

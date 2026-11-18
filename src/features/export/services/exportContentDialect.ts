@@ -65,4 +65,7 @@ export interface ExportContentDialect {
     htmlParts: string[],
     textParts: string[],
   ) => boolean | undefined;
+  extractInlineReference?: (
+    element: Element,
+  ) => { html: string; text: string; plain: string } | undefined;
 }

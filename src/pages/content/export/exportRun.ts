@@ -42,6 +42,7 @@ import {
   startExportSelectionSession,
 } from './exportSelectionSession';
 import type { ExportSite, ExportTurnReader } from './exportSite';
+import { attachGeminiWebPreviews } from './geminiWebPreviews';
 import {
   captureGeneratedUiScreenshots,
   ensureGeneratedUiScreenshotPermission,
@@ -370,6 +371,7 @@ export function createExportRunner(deps: ExportRunnerDeps): ExportRunner {
         const turnsForExport = site.turns.scrollsWhileBuilding
           ? await withExportCollectingBanner(showCollectingBanner, buildTurns)
           : await buildTurns();
+        if (site.id === 'gemini') await attachGeminiWebPreviews(turnsForExport, state);
         throwIfExportCancelled(signal);
         if (exportRouteKey(location.href) !== exportRouteKey(selectionUrl)) {
           throw new Error('export_conversation_changed');

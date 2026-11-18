@@ -30,6 +30,7 @@ import type { ProcessedInlineContent } from './exportRichText';
 import { getExportReadProfiles } from './exportSiteData';
 import { extractUserContent } from './exportUserContent';
 import { processYouTubeCovers } from './exportYouTubeCovers';
+import { readGeminiResearchSources } from './geminiResearchSources';
 
 export { processYouTubeCovers } from './exportYouTubeCovers';
 
@@ -75,6 +76,11 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
       resolveExportMessageContent(element, dialect.siteId);
 
     const codeProfile = dialect.resolveCodeProfile?.(messageContent) ?? DEFAULT_EXPORT_CODE_PROFILE;
+    const sources =
+      dialect.siteId === 'gemini' ? readGeminiResearchSources(messageContent) : undefined;
+    const contentDialect = sources
+      ? { ...dialect, extractInlineReference: sources.citation }
+      : dialect;
 
     // Don't clone! Angular custom elements may lose content when cloned
     // Instead, skip model-thoughts during processNodes
@@ -90,6 +96,7 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
       result,
       processedImageSrcs,
       codeProfile,
+      contentDialect,
     );
 
     // Helper function to search in both light DOM and shadow DOM
@@ -147,7 +154,7 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
       );
     }
 
-    result.html = htmlParts.join('\n');
+    result.html = [...htmlParts, ...(sources?.html ? [sources.html] : [])].join('\n');
     // Clean up multiple newlines but preserve intentional spacing
     let combinedText = textParts
       .join('')
@@ -168,7 +175,7 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
         /* ignore */
       }
     }
-    result.text = combinedText;
+    result.text = [combinedText, sources?.text].filter(Boolean).join('\n\n');
 
     return result;
   }
@@ -224,6 +231,7 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
     flags: ExtractedContentFlags,
     processedImageSrcs: Set<string>,
     codeProfile: ExportCodeProfile,
+    dialect: ExportContentDialect,
   ): void {
     const children = Array.from(container.children);
     const appendInlineContent = (processed: ProcessedInlineContent): void => {
@@ -261,7 +269,15 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
     // Check for Shadow DOM
     const shadowRoot = container instanceof Element ? container.shadowRoot : null;
     if (shadowRoot) {
-      processNodes(shadowRoot, htmlParts, textParts, flags, processedImageSrcs, codeProfile);
+      processNodes(
+        shadowRoot,
+        htmlParts,
+        textParts,
+        flags,
+        processedImageSrcs,
+        codeProfile,
+        dialect,
+      );
     }
 
     for (const child of children) {
@@ -280,6 +296,7 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
           flags,
           processedImageSrcs,
           codeProfile,
+          dialect,
         );
         continue;
       }
@@ -343,7 +360,7 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
       // Traverse containers that own export blocks instead of consuming only their first
       // descendant. This keeps prose, code, and Mermaid output in DOM order.
       if (tagName !== 'ul' && tagName !== 'ol' && exportCodeBlocks.length > 0) {
-        processNodes(child, htmlParts, textParts, flags, new Set<string>(), codeProfile);
+        processNodes(child, htmlParts, textParts, flags, new Set<string>(), codeProfile, dialect);
         continue;
       }
 
@@ -353,7 +370,7 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
       // A wrapper around the whole reply also "contains a table": exporting it as one
       // dropped every heading, paragraph and list beside the table.
       if (!isTable && (tableBlock || child.querySelector('table')) && hasBlocksBesideTable(child)) {
-        processNodes(child, htmlParts, textParts, flags, processedImageSrcs, codeProfile);
+        processNodes(child, htmlParts, textParts, flags, processedImageSrcs, codeProfile, dialect);
         continue;
       }
       if (isTable || tableBlock || child.querySelector('table')) {
@@ -422,7 +439,7 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
       if (tagName === 'blockquote') {
         const quoteHtml: string[] = [];
         const quoteText: string[] = [];
-        processNodes(child, quoteHtml, quoteText, flags, processedImageSrcs, codeProfile);
+        processNodes(child, quoteHtml, quoteText, flags, processedImageSrcs, codeProfile, dialect);
         htmlParts.push(`<blockquote>${quoteHtml.join('')}</blockquote>`);
         const markdown = quoteText
           .join('')
@@ -449,7 +466,15 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
           if (processed.hasFormulas) flags.hasFormulas = true;
           appendInlineContent(processed);
         } else {
-          processNodes(child, htmlParts, textParts, flags, processedImageSrcs, codeProfile);
+          processNodes(
+            child,
+            htmlParts,
+            textParts,
+            flags,
+            processedImageSrcs,
+            codeProfile,
+            dialect,
+          );
         }
         continue;
       }

@@ -23,6 +23,12 @@ export interface ExportAttachment {
   type: string;
 }
 
+export interface ExportWebPreview {
+  title: string;
+  /** A local replay with the preview running inside a sandbox. Missing when capture failed. */
+  html?: string;
+}
+
 /**
  * Chat turn representing a user-assistant exchange
  */
@@ -31,6 +37,7 @@ export interface ChatTurn {
   assistant: string;
   starred: boolean;
   attachments?: ExportAttachment[];
+  webPreviews?: ExportWebPreview[];
   omitEmptySections?: boolean;
   /** The page elements the content was read from, kept for page-level checks. */
   userElement?: HTMLElement;

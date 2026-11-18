@@ -37,6 +37,7 @@ import {
 
 import { resolveExportAdapter } from '../export/adapter/platformAdapters';
 import { readExportLanguage } from '../export/exportLocale';
+import { attachGeminiWebPreviews } from '../export/geminiWebPreviews';
 import {
   createMenuItemFromNativeTemplate,
   updateMenuItemTemplateLabel,
@@ -252,6 +253,7 @@ function handleSaveReport(messages: Translation): void {
           const turns = [
             extractTurnContent(reportTurn, createContentExtractor(resolveExportAdapter())),
           ];
+          await attachGeminiWebPreviews(turns, { format, markdownTextOnly: textOnly });
           const resultPromise = ConversationExportService.export(turns, metadata, {
             format,
             filename,

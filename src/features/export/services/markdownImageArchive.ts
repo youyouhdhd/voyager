@@ -12,6 +12,7 @@ import {
   type ImageFetchBudget,
   MAX_MARKDOWN_ARCHIVE_IMAGE_BYTES,
 } from './boundedImageFetch';
+import type { MarkdownWebPreviewFile } from './markdownWebPreviews';
 import { BlobZipSink, StreamingZipWriter } from './streamingZip';
 
 export interface MarkdownImageFetch {
@@ -23,6 +24,7 @@ export interface PackageMarkdownImagesOptions {
   markdown: string;
   normalizedFilename: string;
   markdownEntryName: string;
+  webPreviewFiles?: readonly MarkdownWebPreviewFile[];
   signal?: AbortSignal;
   fetchImage: (
     url: string,
@@ -163,7 +165,12 @@ export async function packageMarkdownImages(
 
   assertNotAborted(options.signal);
   const packagedMarkdown = MarkdownFormatter.rewriteImageUrls(options.markdown, mapping);
-  await writer.addStored(options.markdownEntryName, new TextEncoder().encode(packagedMarkdown));
+  const encoder = new TextEncoder();
+  for (const file of options.webPreviewFiles ?? []) {
+    assertNotAborted(options.signal);
+    await writer.addStored(file.path, encoder.encode(file.html));
+  }
+  await writer.addStored(options.markdownEntryName, encoder.encode(packagedMarkdown));
   await writer.finish();
   const filename = options.normalizedFilename.replace(/\.md$/i, '.zip');
   (options.download ?? downloadBlob)(sink.toBlob(), filename);

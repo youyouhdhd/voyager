@@ -29,6 +29,7 @@ interface SerializedTable {
  * which keeps formulas as `$…$` but drops emphasis and code markers.
  */
 export type InlineTextTarget = 'markdown' | 'markdownTable' | 'plain';
+type InlineDialect = Pick<ExportContentDialect, 'extractInlineFormula' | 'extractInlineReference'>;
 
 export interface ProcessedInlineContent {
   html: string;
@@ -40,7 +41,7 @@ export interface ProcessedInlineContent {
 
 export function processInlineContent(
   element: HTMLElement,
-  adapter: Pick<ExportContentDialect, 'extractInlineFormula'>,
+  adapter: InlineDialect,
   target: InlineTextTarget = 'markdown',
 ): ProcessedInlineContent {
   let hasFormulas = false;
@@ -90,6 +91,13 @@ export function processInlineContent(
       const el = node as Element;
 
       if (shouldSkipElement(el)) {
+        return;
+      }
+
+      const reference = adapter.extractInlineReference?.(el);
+      if (reference) {
+        htmlParts.push(reference.html);
+        textParts.push(target === 'plain' ? reference.plain : reference.text);
         return;
       }
 
@@ -236,7 +244,7 @@ function serializeInlineCodeSpan(text: string, forMarkdownTable = false): string
 
 export function extractTable(
   element: HTMLElement,
-  adapter: Pick<ExportContentDialect, 'extractInlineFormula'>,
+  adapter: InlineDialect,
 ): {
   html: string;
   text: string;
@@ -296,10 +304,7 @@ export function collectTableRows(table: HTMLTableElement): Element[][] {
   return rowCells;
 }
 
-function serializeTableRows(
-  rowCells: Element[][],
-  adapter: Pick<ExportContentDialect, 'extractInlineFormula'>,
-): SerializedTable {
+function serializeTableRows(rowCells: Element[][], adapter: InlineDialect): SerializedTable {
   let hasFormulas = false;
   const rows = rowCells.map((cells) =>
     cells.map((cell) => {
@@ -312,10 +317,7 @@ function serializeTableRows(
   return { rows, hasFormulas };
 }
 
-function serializeTableCell(
-  cell: HTMLElement,
-  adapter: Pick<ExportContentDialect, 'extractInlineFormula'>,
-): SerializedTableCell {
+function serializeTableCell(cell: HTMLElement, adapter: InlineDialect): SerializedTableCell {
   const processed = processInlineContent(cell, adapter, 'markdownTable');
 
   return {
@@ -336,7 +338,7 @@ function preserveLatexPipeCommandsInMarkdownTable(latex: string): string {
   });
 }
 
-type ListDialect = Pick<ExportContentDialect, 'extractInlineFormula' | 'extractCodeBlock'>;
+type ListDialect = InlineDialect & Pick<ExportContentDialect, 'extractCodeBlock'>;
 
 /** The host's own block-code reading of an element, or null when the host does not claim it. */
 function readHostCodeBlock(

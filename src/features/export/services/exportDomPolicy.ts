@@ -13,6 +13,7 @@ export function shouldSkipElement(element: Element): boolean {
     element.tagName === 'MAT-ICON' ||
     // Gemini inline sources/citation chips (appear as link icons in export/print)
     element.tagName === 'SOURCES-CAROUSEL-INLINE' ||
+    element.tagName === 'DEEP-RESEARCH-SOURCE-LISTS' ||
     element.tagName === 'SOURCE-INLINE-CHIPS' ||
     element.tagName === 'SOURCE-INLINE-CHIP' ||
     // Generated image overlay controls (share, copy, download buttons)
