@@ -116,8 +116,16 @@ it('keeps references at the original claim and writes the report and matched pre
   expect(markdown).toContain('## Thinking\n\n#### Check evidence\n\nReviewed the patent.');
   expect(markdown).toContain('[Research notes](<https://example.test/research>)');
   expect(markdown).toContain('(report.html)');
-  expect(markdown).toContain(
-    'Before the chart.\n\n[A chart &#91;1&#93;](previews/web-preview-1.html)\n\nAfter the chart.',
+  const previewFrame = renderedMarkdown.querySelector('iframe[src="previews/web-preview-1.html"]');
+  expect(previewFrame?.getAttribute('sandbox')).toBe('allow-scripts');
+  expect(previewFrame?.previousElementSibling?.previousElementSibling?.textContent).toBe(
+    'Before the chart.',
+  );
+  expect(previewFrame?.nextElementSibling?.querySelector('a')?.getAttribute('href')).toBe(
+    'previews/web-preview-1.html',
+  );
+  expect(previewFrame?.nextElementSibling?.nextElementSibling?.textContent).toBe(
+    'After the chart.',
   );
   expect(markdown).not.toContain('data-gv-export-preview');
   expect(zip.file('previews/web-preview-2.html')).toBeNull();

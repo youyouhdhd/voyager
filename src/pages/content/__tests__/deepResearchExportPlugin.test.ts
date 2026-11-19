@@ -205,6 +205,7 @@ describe('Gemini Deep Research export through its registered official plugin', (
   });
 
   it('an accepted report export finishes and reports its result after the menu is disabled', async () => {
+    vi.setSystemTime(new Date(2026, 10, 20, 2, 47, 53));
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
     );
@@ -247,7 +248,7 @@ describe('Gemini Deep Research export through its registered official plugin', (
       expect.objectContaining({ title: 'Solar report' }),
       expect.objectContaining({
         format: 'pdf',
-        filename: 'Conversation-test__Solar-report.pdf',
+        filename: expect.stringMatching(/^Solar-report_2026-11-20_02-47-53_UTC[+-]\d{4}\.pdf$/),
         layout: 'document',
       }),
     );

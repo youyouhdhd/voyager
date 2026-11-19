@@ -340,7 +340,7 @@ export class ConversationExportService {
         markdown: content.markdown,
         html: content.html,
       },
-      { fontSize: options.fontSize },
+      { fontSize: options.fontSize, ...(options.filename ? { filename: options.filename } : {}) },
     );
 
     return {

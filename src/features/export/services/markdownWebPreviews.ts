@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 
 import type { ChatTurn, ExportWebPreview } from '../types/export';
-import { escapeHtml } from './exportDomPolicy';
+import { escapeHtml, escapeHtmlAttribute } from './exportDomPolicy';
 import { offlineHtmlPage, offlinePreviewFrame, offlinePreviewPage } from './offlinePreviewHtml';
 
 export interface MarkdownWebPreviewFile {
@@ -33,7 +33,7 @@ export function removeMarkdownWebPreviewSlots(turns: ChatTurn[]): ChatTurn[] {
   });
 }
 
-/** Write the local link and offline embed at the same captured position. */
+/** Keep the inline frame and its fallback link at the captured position. */
 export function prepareMarkdownWebPreviews(turns: ChatTurn[], title?: string) {
   const files: MarkdownWebPreviewFile[] = [];
   const linkedTurns = turns.map((turn) => {
@@ -51,7 +51,13 @@ export function prepareMarkdownWebPreviews(turns: ChatTurn[], title?: string) {
       if (!html) return `${label} (web preview unavailable)`;
       const path = `previews/web-preview-${files.length + 1}.html`;
       files.push({ path, html: offlinePreviewPage(title, html) });
-      return `[${label}](${path})`;
+      // Readers that impose a stricter sandbox leave the fallback link visible.
+      const fallbackStyle =
+        files.length === 1
+          ? '<style>iframe.gemini-web-preview:not([sandbox~="allow-scripts"]){display:none}</style>\n\n'
+          : '';
+      const frame = `<iframe class="gemini-web-preview" src="${path}" title="${escapeHtmlAttribute(title.replace(/\s+/g, ' '))}" sandbox="allow-scripts" width="100%" height="600" loading="lazy"></iframe>`;
+      return `${fallbackStyle}${frame}\n\n[${label}](${path})`;
     });
     return {
       ...turn,

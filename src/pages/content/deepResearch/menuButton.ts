@@ -204,25 +204,25 @@ function sanitizeFilenamePart(value: string): string {
   return cleaned || 'deep-research-report';
 }
 
-function buildReportFilename(
-  format: ExportFormat,
-  title: string,
-  conversationTitle: string,
-): string {
+function buildReportFilename(format: ExportFormat, title: string, exportedAt: Date): string {
   const report = sanitizeFilenamePart(title || 'deep-research-report');
-  const label = conversationTitle
-    .replace(/(?:^|\s*[-–—|]\s*)(?:Google Gemini|Gemini)\s*$/i, '')
-    .trim();
-  const conversation =
-    label && label !== 'Untitled Conversation' ? sanitizeFilenamePart(label) : '';
-  const base =
-    conversation && conversation !== report
-      ? `${conversation.slice(0, 50)}__${report}`.slice(0, 80)
-      : report;
-  if (format === 'json') return `${base}.json`;
-  if (format === 'markdown') return `${base}.md`;
-  if (format === 'pdf') return `${base}.pdf`;
-  return `${base}.png`;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+    timeZoneName: 'longOffset',
+  }).formatToParts(exportedAt);
+  const { year, month, day, hour, minute, second, timeZoneName } = Object.fromEntries(
+    parts.map(({ type, value }) => [type, value]),
+  );
+  const zone =
+    timeZoneName === 'GMT' ? 'UTC+0000' : timeZoneName.replace('GMT', 'UTC').replace(':', '');
+  const extension = { json: 'json', markdown: 'md', pdf: 'pdf', image: 'png' }[format];
+  return `${report}_${year}-${month}-${day}_${hour}-${minute}-${second}_${zone}.${extension}`;
 }
 
 function handleSaveReport(messages: Translation): void {
@@ -235,13 +235,6 @@ function handleSaveReport(messages: Translation): void {
 
     const reportTitle = extractDeepResearchReportTitle(reportRoot);
     const adapter = resolveExportAdapter();
-    const conversationTitle = adapter.extractConversationTitle();
-    const metadata: ConversationMetadata = {
-      url: location.href,
-      exportedAt: new Date().toISOString(),
-      count: 1,
-      title: reportTitle,
-    };
 
     const reportTurn: ExportChatTurn = {
       user: '',
@@ -264,6 +257,13 @@ function handleSaveReport(messages: Translation): void {
         _overrides,
         textOnly,
       ) => {
+        const exportedAt = new Date();
+        const metadata: ConversationMetadata = {
+          url: location.href,
+          exportedAt: exportedAt.toISOString(),
+          count: 1,
+          title: reportTitle,
+        };
         const visual = format === 'pdf' || format === 'image';
         const progress = showExportProgress(exportingProgressText(t));
         try {
@@ -274,7 +274,7 @@ function handleSaveReport(messages: Translation): void {
           if (format === 'image') {
             await saveImageExportWidth(imageWidth);
           }
-          const filename = buildReportFilename(format, reportTitle, conversationTitle);
+          const filename = buildReportFilename(format, reportTitle, exportedAt);
           // Deep Research is a Gemini-only surface; the Gemini dialect renders its $$ formulas.
           const turns = [extractTurnContent(reportTurn, createContentExtractor(adapter))];
           appendGeminiResearchThinking(turns);

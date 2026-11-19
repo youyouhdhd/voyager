@@ -523,7 +523,12 @@ describe('saving a Deep Research report', () => {
     expect(ConversationExportService.export).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({ title: 'Solar report' }),
-      expect.objectContaining({ format: 'pdf', filename: 'Solar-report.pdf' }),
+      expect.objectContaining({
+        format: 'pdf',
+        filename: expect.stringMatching(
+          /^Solar-report_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_UTC[+-]\d{4}\.pdf$/,
+        ),
+      }),
     );
   });
 });

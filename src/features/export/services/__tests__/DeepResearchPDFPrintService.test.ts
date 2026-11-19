@@ -31,20 +31,26 @@ describe('DeepResearchPDFPrintService', () => {
     document.title = 'Gemini';
     window.print = vi.fn();
 
-    await DeepResearchPDFPrintService.export({
-      title: 'Deep Research Report',
-      url: 'https://gemini.google.com/app/abc12345',
-      exportedAt: new Date().toISOString(),
-      markdown: '# Markdown title\n\nMarkdown body',
-      html: '<div class="markdown-main-panel"><h2>HTML title</h2><p>HTML body</p></div>',
-    });
+    await DeepResearchPDFPrintService.export(
+      {
+        title: 'Deep Research Report',
+        url: 'https://gemini.google.com/app/abc12345',
+        exportedAt: new Date().toISOString(),
+        markdown: '# Markdown title\n\nMarkdown body',
+        html: '<div class="markdown-main-panel"><h2>HTML title</h2><p>HTML body</p></div>',
+      },
+      { filename: 'Report_2026-11-19_13-47-53_UTC-0500.pdf' },
+    );
 
     const container = document.getElementById('gv-deep-research-pdf-print-container');
     const report = container?.querySelector('.gv-dr-print-report');
     expect(window.print).toHaveBeenCalledOnce();
     expect(container).toBeTruthy();
     expect(report?.textContent).toContain('HTML title');
-    expect(document.title).toBe('Deep Research Report');
+    expect(document.title).toBe('Report_2026-11-19_13-47-53_UTC-0500');
+    expect(container?.querySelector('.gv-dr-print-cover-title')?.textContent).toBe(
+      'Deep Research Report',
+    );
     expect(document.body.classList.contains('gv-deep-research-pdf-printing')).toBe(true);
 
     window.dispatchEvent(new Event('afterprint'));
