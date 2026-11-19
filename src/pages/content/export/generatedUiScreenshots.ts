@@ -102,8 +102,10 @@ async function captureVisibleTab(): Promise<string | null> {
  * Must be the first await of a click handler: the browser only grants the
  * permission while the user gesture is still active. Never throws.
  */
-export async function ensureGeneratedUiScreenshotPermission(): Promise<void> {
-  if (!document.querySelector(GENERATED_UI_FRAME_SELECTOR)) return;
+export async function ensureGeneratedUiScreenshotPermission(
+  root: ParentNode = document,
+): Promise<void> {
+  if (!root.querySelector(GENERATED_UI_FRAME_SELECTOR)) return;
   try {
     // Must run from export click handlers, before preload/capture awaits erase the gesture.
     const response = (await chrome.runtime.sendMessage({
@@ -124,11 +126,9 @@ export async function ensureGeneratedUiScreenshotPermission(): Promise<void> {
  * toast among them) while capturing so they are not in the shot. Never throws: a failed capture leaves
  * the frame's link/text fallback for the exporter.
  */
-export async function captureGeneratedUiScreenshots(): Promise<void> {
+export async function captureGeneratedUiScreenshots(root: ParentNode = document): Promise<void> {
   removeGeneratedUiScreenshotSections();
-  const frames = Array.from(
-    document.querySelectorAll<HTMLIFrameElement>(GENERATED_UI_FRAME_SELECTOR),
-  );
+  const frames = Array.from(root.querySelectorAll<HTMLIFrameElement>(GENERATED_UI_FRAME_SELECTOR));
   if (frames.length === 0) return;
 
   const hiddenLayers = Array.from(document.querySelectorAll<HTMLElement>(`[${LAYER_ATTR}]`));

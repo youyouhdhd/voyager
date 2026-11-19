@@ -31,6 +31,24 @@ interface SerializedTable {
 export type InlineTextTarget = 'markdown' | 'markdownTable' | 'plain';
 type InlineDialect = Pick<ExportContentDialect, 'extractInlineFormula' | 'extractInlineReference'>;
 
+function renderClonedReferences(root: HTMLElement, adapter: InlineDialect): void {
+  if (!adapter.extractInlineReference) return;
+  for (const marker of root.querySelectorAll('sup[data-turn-source-index]')) {
+    const reference = adapter.extractInlineReference(marker);
+    if (!reference) continue;
+    const sup = root.ownerDocument.createElement('sup');
+    if (reference.href) {
+      const link = root.ownerDocument.createElement('a');
+      link.href = reference.href;
+      link.textContent = reference.plain;
+      sup.append(link);
+    } else {
+      sup.textContent = reference.plain;
+    }
+    marker.replaceWith(sup);
+  }
+}
+
 export interface ProcessedInlineContent {
   html: string;
   text: string;
@@ -264,6 +282,7 @@ export function extractTable(
   // Extract HTML (clean version)
   const cleanTable = table.cloneNode(true) as HTMLElement;
   stripExportArtifacts(cleanTable);
+  renderClonedReferences(cleanTable, adapter);
 
   // Convert to Markdown
   const serializedTable = serializeTableRows(collectTableRows(table), adapter);
@@ -494,6 +513,7 @@ export function extractList(
     // '' is a block the adapter consumed into nothing; only null leaves the element as it is.
     (block) => readHostCodeBlock(block, adapter, codeProfile)?.html ?? null,
     codeProfile,
+    (clone) => renderClonedReferences(clone, adapter),
   );
 
   return {

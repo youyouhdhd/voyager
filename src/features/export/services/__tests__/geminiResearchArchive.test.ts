@@ -1,6 +1,8 @@
 import JSZip from 'jszip';
+import { marked } from 'marked';
 import { afterEach, expect, it, vi } from 'vitest';
 
+import { matchGeminiPreviewDocument } from '@/core/gemini/previewExport';
 import { attachGeminiWebPreviews } from '@/pages/content/export/geminiWebPreviews';
 
 import { ExportFormat } from '../../types/export';
@@ -23,6 +25,17 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+it('associates a blob preview with its shim without guessing between two same-origin requests', () => {
+  const blob = 'blob:https://chart.scf.usercontent.goog/123';
+  expect(
+    matchGeminiPreviewDocument(blob, [previewUrl, previewUrl.replace('chart.', 'other.')]),
+  ).toBe(previewUrl);
+  expect(
+    matchGeminiPreviewDocument(blob, [previewUrl, previewUrl.replace('cache=1', 'cache=2')]),
+  ).toBeUndefined();
+  expect(matchGeminiPreviewDocument('blob:https://example.test/123', [previewUrl])).toBeUndefined();
+});
+
 it('keeps references at the original claim and writes the report and matched preview into one ZIP', async () => {
   document.body.innerHTML = `<response-container><div class="response-container-content">
     <message-content><div class="markdown">
@@ -30,6 +43,7 @@ it('keeps references at the original claim and writes the report and matched pre
       <p>Claim<source-footnote><sup data-turn-source-index="2"></sup></source-footnote>.</p>
       <p>No destination<source-footnote><sup data-turn-source-index="1"></sup></source-footnote>.</p>
       <ul><li>Evidence<sup data-turn-source-index="2"></sup></li></ul>
+      <table><tr><th>Finding</th></tr><tr><td>Evidence<sup data-turn-source-index="2"></sup></td></tr></table>
       <web-preview><iframe src="${previewUrl}"></iframe></web-preview>
     </div></message-content>
     <deep-research-source-lists>
@@ -73,9 +87,15 @@ it('keeps references at the original claim and writes the report and matched pre
   });
   const zip = await JSZip.loadAsync(download.mock.calls[0]![0]);
   const markdown = await zip.file('Research.md')?.async('string');
-  expect(markdown).toContain('Claim[2](<https://example.test/used>).');
+  expect(markdown).toContain('Claim[\\[2\\]](<https://example.test/used>).');
+  expect(marked.parse(markdown ?? '')).toContain('<a href="https://example.test/used">[2]</a>');
+  expect(
+    turn.assistantContent?.html.match(
+      /<sup><a href="https:\/\/example\.test\/used">\[2\]<\/a><\/sup>/g,
+    ),
+  ).toHaveLength(3);
   expect(markdown).toContain('No destination\\[1\\].');
-  expect(markdown).toContain('Evidence[2](<https://example.test/used>)');
+  expect(markdown).toContain('Evidence[\\[2\\]](<https://example.test/used>)');
   expect(markdown).toContain('2. [Used (original)](<https://example.test/used>)');
   expect(markdown).toContain('https://example.test/unused');
   expect(markdown).toContain('[A chart \\[1\\]](previews/web-preview-1.html)');

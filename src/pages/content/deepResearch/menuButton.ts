@@ -39,6 +39,11 @@ import { resolveExportAdapter } from '../export/adapter/platformAdapters';
 import { readExportLanguage } from '../export/exportLocale';
 import { attachGeminiWebPreviews } from '../export/geminiWebPreviews';
 import {
+  captureGeneratedUiScreenshots,
+  ensureGeneratedUiScreenshotPermission,
+  removeGeneratedUiScreenshotSections,
+} from '../export/generatedUiScreenshots';
+import {
   createMenuItemFromNativeTemplate,
   updateMenuItemTemplateLabel,
 } from '../shared/nativeMenuItemTemplate';
@@ -243,8 +248,13 @@ function handleSaveReport(messages: Translation): void {
         _overrides,
         textOnly,
       ) => {
+        const visual = format === 'pdf' || format === 'image';
         const progress = showExportProgress(exportingProgressText(t));
         try {
+          if (visual) {
+            await ensureGeneratedUiScreenshotPermission(reportRoot);
+            await captureGeneratedUiScreenshots(reportRoot);
+          }
           if (format === 'image') {
             await saveImageExportWidth(imageWidth);
           }
@@ -273,6 +283,7 @@ function handleSaveReport(messages: Translation): void {
           console.error('[Gemini Voyager] Report export error:', error);
           showExportAlert(resolveExportErrorMessage(error, t), t);
         } finally {
+          if (visual) removeGeneratedUiScreenshotSections();
           progress.hide();
         }
       },

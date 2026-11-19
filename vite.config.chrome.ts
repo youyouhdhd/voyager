@@ -135,9 +135,10 @@ export const chromeManifest = {
     ...(chromeSharedContentScripts ?? []),
     ...chromeMainWorldObservers,
     {
-      matches: ['https://*.scf.usercontent.goog/gemini-code-immersive/shim.html*'],
+      matches: ['https://*.scf.usercontent.goog/*'],
       js: ['src/pages/content/geminiPreviewEntry.ts'],
       all_frames: true,
+      match_origin_as_fallback: true,
     },
   ],
   // declarativeContent is Chrome/Edge-only (absent on Firefox/Safari).

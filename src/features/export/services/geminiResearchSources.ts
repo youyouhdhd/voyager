@@ -35,7 +35,7 @@ export function readGeminiResearchSources(root: HTMLElement) {
 
   const citation = (
     element: Element,
-  ): { html: string; text: string; plain: string } | undefined => {
+  ): { html: string; text: string; plain: string; href?: string } | undefined => {
     if (!element.matches('sup[data-turn-source-index]')) return;
     const index = element.getAttribute('data-turn-source-index') ?? '';
     if (!/^[1-9]\d*$/.test(index)) return;
@@ -44,8 +44,9 @@ export function readGeminiResearchSources(root: HTMLElement) {
     const plain = `[${index}]`;
     return {
       html: `<sup>${url ? `<a href="${escapeHtmlAttribute(url)}">${plain}</a>` : plain}</sup>`,
-      text: url ? markdownLink(index, url) : `\\[${index}\\]`,
+      text: url ? markdownLink(plain, url) : `\\[${index}\\]`,
       plain,
+      href: url || undefined,
     };
   };
 

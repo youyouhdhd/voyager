@@ -25,6 +25,23 @@ export function isGeminiPreviewUrl(value: unknown): value is string {
   }
 }
 
+export function matchGeminiPreviewDocument(
+  documentUrl: string,
+  requested: unknown[],
+): string | undefined {
+  if (!documentUrl.startsWith('blob:https://')) {
+    return isGeminiPreviewUrl(documentUrl) && requested.includes(documentUrl)
+      ? documentUrl
+      : undefined;
+  }
+  const origin = new URL(documentUrl).origin;
+  const matches = requested
+    .filter(isGeminiPreviewUrl)
+    .filter((url) => new URL(url).origin === origin);
+  // The shim navigates itself to a blob. Only bind it to a unique requested frame origin.
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 export function isGeminiPreviewSnapshot(value: unknown): value is GeminiPreviewSnapshot {
   if (!value || typeof value !== 'object') return false;
   return (

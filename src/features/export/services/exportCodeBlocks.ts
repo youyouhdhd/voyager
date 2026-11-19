@@ -256,6 +256,7 @@ export function serializeListHtml(
   element: HTMLElement,
   readHostCodeBlock?: (block: HTMLElement) => string | null,
   liveProfile: ExportCodeProfile = DEFAULT_EXPORT_CODE_PROFILE,
+  finishClone?: (clone: HTMLElement) => void,
 ): string {
   const liveEchartsWrappers = Array.from(
     element.querySelectorAll<HTMLElement>(ECHARTS_WRAPPER_SELECTOR),
@@ -268,6 +269,7 @@ export function serializeListHtml(
   const profile = cloneExportCodeProfile(element, cleanList, liveProfile);
   const clonedDiagramBlocks = Array.from(cleanList.querySelectorAll<HTMLElement>(ownedSelector));
   stripExportArtifacts(cleanList);
+  finishClone?.(cleanList);
   // After stripping, which would drop the <style> inside a drawn SVG; before the
   // code-block pass below, which would put the source in the drawing's place.
   clonedDiagramBlocks.forEach((clone, index) => {

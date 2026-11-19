@@ -67,5 +67,5 @@ export interface ExportContentDialect {
   ) => boolean | undefined;
   extractInlineReference?: (
     element: Element,
-  ) => { html: string; text: string; plain: string } | undefined;
+  ) => { html: string; text: string; plain: string; href?: string } | undefined;
 }
