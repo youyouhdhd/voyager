@@ -134,19 +134,7 @@ export function extractThinkingPanels(): ThinkingContent | null {
       return null;
     }
 
-    const sections: ThinkingSection[] = [];
-
-    // Find all thinking-panel elements
-    const thinkingPanels = deepResearchPanel.querySelectorAll(
-      researchSelector(view, 'deepResearch.thinkingPanels'),
-    );
-
-    thinkingPanels.forEach((panel) => {
-      const section = extractThinkingSection(panel, view);
-      if (section) {
-        sections.push(section);
-      }
-    });
+    const sections = readResearchThinkingSections(deepResearchPanel, view);
 
     if (sections.length === 0) {
       logger.debug('No Deep Research thinking content found');
@@ -165,6 +153,15 @@ export function extractThinkingPanels(): ThinkingContent | null {
     logger.error('Error extracting Deep Research thinking panels', { error });
     return null;
   }
+}
+
+export function readResearchThinkingSections(
+  root: ParentNode,
+  view = deepResearchView(),
+): ThinkingSection[] {
+  return Array.from(root.querySelectorAll(researchSelector(view, 'deepResearch.thinkingPanels')))
+    .map((panel) => extractThinkingSection(panel, view))
+    .filter((section): section is ThinkingSection => section !== null);
 }
 
 /**

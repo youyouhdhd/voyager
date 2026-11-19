@@ -17,7 +17,8 @@ if (window !== window.top) {
         return;
       const root = document.documentElement.cloneNode(true);
       if (!(root instanceof Element)) return;
-      root.querySelectorAll('[data-bard-client-injected]').forEach((element) => element.remove());
+      // This is already rendered. Running initialization again would append duplicate chart data.
+      root.querySelectorAll('script').forEach((element) => element.remove());
       root
         .querySelectorAll(
           'meta[http-equiv="refresh" i], meta[http-equiv="content-security-policy" i], base',

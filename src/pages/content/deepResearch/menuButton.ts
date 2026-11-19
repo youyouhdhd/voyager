@@ -47,6 +47,7 @@ import {
   createMenuItemFromNativeTemplate,
   updateMenuItemTemplateLabel,
 } from '../shared/nativeMenuItemTemplate';
+import { appendGeminiResearchThinking } from './appendThinking';
 import { downloadMarkdown } from './download';
 import { extractThinkingPanels } from './extractor';
 import { formatToMarkdown } from './formatter';
@@ -263,6 +264,7 @@ function handleSaveReport(messages: Translation): void {
           const turns = [
             extractTurnContent(reportTurn, createContentExtractor(resolveExportAdapter())),
           ];
+          appendGeminiResearchThinking(turns);
           await attachGeminiWebPreviews(turns, { format, markdownTextOnly: textOnly });
           const resultPromise = ConversationExportService.export(turns, metadata, {
             format,

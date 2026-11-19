@@ -20,7 +20,11 @@ import { PDFPrintService } from './PDFPrintService';
 import { MAX_EXPORT_IMAGE_TOTAL_BYTES, fetchBoundedExportImage } from './boundedImageFetch';
 import { packageMarkdownImages } from './markdownImageArchive';
 import { stripMarkdownImages } from './markdownTextOnly';
-import { type MarkdownWebPreviewFile, prepareMarkdownWebPreviews } from './markdownWebPreviews';
+import {
+  type MarkdownWebPreviewFile,
+  prepareMarkdownWebPreviews,
+  serializeJsonWebPreviews,
+} from './markdownWebPreviews';
 
 /**
  * Main export service
@@ -110,7 +114,7 @@ export class ConversationExportService {
   ): Promise<ExportResult> {
     const prepared =
       options.format === 'markdown' && !options.markdownTextOnly
-        ? prepareMarkdownWebPreviews(turns)
+        ? prepareMarkdownWebPreviews(turns, metadata.title)
         : { turns, files: [] };
     const content = this.extractDocumentContent(prepared.turns);
 
@@ -149,7 +153,9 @@ export class ConversationExportService {
         assistant: turn.assistantContent?.text || turn.assistant,
         starred: turn.starred,
         ...(attachments.length > 0 ? { attachments } : {}),
-        ...(turn.webPreviews?.length ? { webPreviews: turn.webPreviews } : {}),
+        ...(turn.webPreviews?.length
+          ? { webPreviews: serializeJsonWebPreviews(turn.webPreviews) }
+          : {}),
       };
     });
 
@@ -184,7 +190,7 @@ export class ConversationExportService {
   ): Promise<ExportResult> {
     const prepared = options.markdownTextOnly
       ? { turns, files: [] }
-      : prepareMarkdownWebPreviews(turns);
+      : prepareMarkdownWebPreviews(turns, metadata.title);
     // First create a clean markdown (no inlining)
     let markdown = MarkdownFormatter.format(prepared.turns, metadata, {
       usePromptAsTurnHeading: options.usePromptAsTurnHeading,
@@ -270,7 +276,9 @@ export class ConversationExportService {
       content: {
         markdown: content.markdown,
         html: content.html,
-        ...(content.webPreviews?.length ? { webPreviews: content.webPreviews } : {}),
+        ...(content.webPreviews?.length
+          ? { webPreviews: serializeJsonWebPreviews(content.webPreviews) }
+          : {}),
       },
     };
 

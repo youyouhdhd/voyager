@@ -1,6 +1,7 @@
 import { buildConversationIdFromUrl } from '@/core/utils/conversationIdentity';
 import { StarredMessagesService } from '@/features/savedLibrary/StarredMessagesService';
 
+import { appendGeminiResearchThinking } from '../../deepResearch/appendThinking';
 import { findMatchingStarredMessages } from '../../timeline/starredLookup';
 import type { ExportSelectionOptions } from '../adapter/type';
 import type { ConversationCollector } from '../conversationCollector';
@@ -24,10 +25,12 @@ export function createGeminiTurnSource(page: ConversationCollector): ExportTurnS
       const data = await StarredMessagesService.getAllStarredMessages();
       assertCurrent(options, url);
       const { messages } = findMatchingStarredMessages(data, buildConversationIdFromUrl(url), url);
-      return page.turnsForMessageIds(
+      const turns = page.turnsForMessageIds(
         selectedIds,
         new Set(messages.map((message) => message.turnId)),
       );
+      appendGeminiResearchThinking(turns);
+      return turns;
     },
   };
   return {

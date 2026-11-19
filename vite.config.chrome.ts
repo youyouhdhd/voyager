@@ -4,6 +4,7 @@ import { existsSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { Plugin, defineConfig, mergeConfig } from 'vite';
 
+import { selfContainedContentScripts } from './custom-vite-plugins';
 import {
   collectBundleAssetPaths,
   collectStaticAssetPaths,
@@ -19,6 +20,7 @@ import {
 import baseConfig, { baseBuildOptions, baseManifest } from './vite.config.base';
 
 const isDev = process.env.__DEV__ === 'true';
+const geminiPreviewSourceEntry = 'src/pages/content/geminiPreviewSourceEntry.ts';
 const outDirName =
   process.env.VOYAGER_BUILD_TARGET === 'edge'
     ? 'dist_edge'
@@ -135,6 +137,16 @@ export const chromeManifest = {
     ...(chromeSharedContentScripts ?? []),
     ...chromeMainWorldObservers,
     {
+      matches: [
+        'https://gemini.google.com/*',
+        'https://business.gemini.google/*',
+        'https://*.scf.usercontent.goog/gemini-code-immersive/shim.html*',
+      ],
+      js: [geminiPreviewSourceEntry],
+      all_frames: true,
+      run_at: 'document_start',
+    },
+    {
       matches: ['https://*.scf.usercontent.goog/*'],
       js: ['src/pages/content/geminiPreviewEntry.ts'],
       all_frames: true,
@@ -183,6 +195,7 @@ export default mergeConfig(
         },
       }),
       scriptedPreludeAsset(),
+      selfContainedContentScripts([geminiPreviewSourceEntry]),
       devBuildReadyPlugin(),
     ],
     build: {

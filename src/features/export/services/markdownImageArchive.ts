@@ -164,7 +164,10 @@ export async function packageMarkdownImages(
   );
 
   assertNotAborted(options.signal);
-  const packagedMarkdown = MarkdownFormatter.rewriteImageUrls(options.markdown, mapping);
+  const markdown = options.webPreviewFiles?.some((file) => file.path === 'report.html')
+    ? `${options.markdown}\n\n[Open the offline HTML report](report.html)\n`
+    : options.markdown;
+  const packagedMarkdown = MarkdownFormatter.rewriteImageUrls(markdown, mapping);
   const encoder = new TextEncoder();
   for (const file of options.webPreviewFiles ?? []) {
     assertNotAborted(options.signal);

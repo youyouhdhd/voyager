@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import { afterEach, expect, it, vi } from 'vitest';
 
 import { matchGeminiPreviewDocument } from '@/core/gemini/previewExport';
+import { appendGeminiResearchThinking } from '@/pages/content/deepResearch/appendThinking';
 import { attachGeminiWebPreviews } from '@/pages/content/export/geminiWebPreviews';
 
 import { ExportFormat } from '../../types/export';
@@ -52,6 +53,11 @@ it('keeps references at the original claim and writes the report and matched pre
       </div>
       <div class="unused-sources" hidden><browse-web-item><a href="https://example.test/unused">Unused</a></browse-web-item></div>
     </deep-research-source-lists>
+    <thinking-panel hidden>
+      <div class="item-container"><thought-item><div class="thought-header">Check evidence</div>
+        <div class="gds-body-m gds-italic">Reviewed the patent.</div></thought-item></div>
+      <div class="item-container"><browse-chip-list><browse-web-chip><a data-test-id="browse-chip-link" href="https://example.test/research"><span data-test-id="domain-name">example.test</span><span data-test-id="title">Research notes</span></a></browse-web-chip></browse-chip-list></div>
+    </thinking-panel>
   </div></response-container>`;
   const assistantElement = document.querySelector<HTMLElement>('message-content')!;
   const extractor = createContentExtractor({ ...domExtractorTestAdapter, siteId: 'gemini' });
@@ -59,6 +65,7 @@ it('keeps references at the original claim and writes the report and matched pre
     { user: '', assistant: '', starred: false, assistantElement },
     extractor,
   );
+  appendGeminiResearchThinking([turn]);
   const request = vi.fn().mockResolvedValue([
     {
       url: previewUrl,
@@ -87,22 +94,36 @@ it('keeps references at the original claim and writes the report and matched pre
   });
   const zip = await JSZip.loadAsync(download.mock.calls[0]![0]);
   const markdown = await zip.file('Research.md')?.async('string');
-  expect(markdown).toContain('Claim[\\[2\\]](<https://example.test/used>).');
-  expect(marked.parse(markdown ?? '')).toContain('<a href="https://example.test/used">[2]</a>');
+  expect(markdown).toContain('Claim[&#91;2&#93;](<https://example.test/used>).');
+  const renderedMarkdown = new DOMParser().parseFromString(
+    marked.parse(markdown ?? '', { async: false }),
+    'text/html',
+  );
+  expect(renderedMarkdown.querySelector('p a[href="https://example.test/used"]')?.textContent).toBe(
+    '[2]',
+  );
   expect(
     turn.assistantContent?.html.match(
       /<sup><a href="https:\/\/example\.test\/used">\[2\]<\/a><\/sup>/g,
     ),
   ).toHaveLength(3);
-  expect(markdown).toContain('No destination\\[1\\].');
-  expect(markdown).toContain('Evidence[\\[2\\]](<https://example.test/used>)');
+  expect(markdown).toContain('No destination&#91;1&#93;.');
+  expect(markdown).toContain('Evidence[&#91;2&#93;](<https://example.test/used>)');
   expect(markdown).toContain('2. [Used (original)](<https://example.test/used>)');
   expect(markdown).toContain('https://example.test/unused');
+  expect(markdown).toContain('## Thinking\n\n#### Check evidence\n\nReviewed the patent.');
+  expect(markdown).toContain('[Research notes](<https://example.test/research>)');
+  expect(markdown).toContain('(report.html)');
   expect(markdown).toContain('[A chart \\[1\\]](previews/web-preview-1.html)');
   expect(zip.file('previews/web-preview-2.html')).toBeNull();
   expect(await zip.file('previews/web-preview-1.html')?.async('string')).toContain(
     'sandbox="allow-scripts"',
   );
+  const htmlReport = await zip.file('report.html')?.async('string');
+  expect(htmlReport).toContain('<h2>Thinking</h2>');
+  expect(htmlReport).toContain('<a href="https://example.test/used">[2]</a>');
+  expect(htmlReport).toContain('sandbox="allow-scripts" srcdoc=');
+  expect(htmlReport).toContain('&lt;button&gt;Change&lt;/button&gt;');
 
   const textDownload = vi.spyOn(MarkdownFormatter, 'download').mockImplementation(() => {});
   await ConversationExportService.export([turn], metadata, { ...options, markdownTextOnly: true });

@@ -25,7 +25,7 @@ export interface ExportAttachment {
 
 export interface ExportWebPreview {
   title: string;
-  /** A local replay with the preview running inside a sandbox. Missing when capture failed. */
+  /** Captured document markup. Output writers place it inside a sandbox before saving. */
   html?: string;
 }
 
