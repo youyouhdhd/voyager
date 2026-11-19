@@ -27,6 +27,8 @@ export interface ExportWebPreview {
   title: string;
   /** Captured document markup. Output writers place it inside a sandbox before saving. */
   html?: string;
+  /** PNG pixels captured for the Markdown archive. */
+  screenshot?: Uint8Array;
 }
 
 /**

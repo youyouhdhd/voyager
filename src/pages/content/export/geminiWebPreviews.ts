@@ -1,6 +1,8 @@
 import { GEMINI_PREVIEW_EXPORT, isGeminiPreviewSnapshot } from '@/core/gemini/previewExport';
 import { geminiPreviewFrames } from '@/features/export/services/geminiPreviewSlots';
-import type { ChatTurn, ExportOptions } from '@/features/export/types/export';
+import type { ChatTurn, ExportOptions, ExportWebPreview } from '@/features/export/types/export';
+
+import { captureGeneratedUiFrames } from './generatedUiScreenshots';
 
 interface PreviewSource {
   url: string;
@@ -44,6 +46,7 @@ export async function attachGeminiWebPreviews(
       ? response.filter(isGeminiPreviewSnapshot).map((entry) => [entry.url, entry])
       : [],
   );
+  const toCapture = new Map<HTMLIFrameElement, ExportWebPreview>();
   let remaining = 8_000_000;
   turns.forEach((turn, index) => {
     const frames = framesByTurn[index];
@@ -61,7 +64,27 @@ export async function attachGeminiWebPreviews(
         `Gemini web preview ${i + 1}`;
       if (!html || html.length > remaining) return { title };
       remaining -= html.length;
-      return { title, html };
+      const preview = { title, html };
+      if (options.format === 'markdown') toCapture.set(frame, preview);
+      return preview;
     });
   });
+  let imageBytes = 16 * 1024 * 1024;
+  if (toCapture.size) {
+    await captureGeneratedUiFrames([...toCapture.keys()], (frame, dataUrl) => {
+      const preview = toCapture.get(frame);
+      const prefix = 'data:image/png;base64,';
+      if (
+        !preview ||
+        !dataUrl.startsWith(prefix) ||
+        dataUrl.length > (imageBytes * 4) / 3 + prefix.length
+      )
+        return;
+      const bytes = Uint8Array.from(atob(dataUrl.slice(prefix.length)), (char) =>
+        char.charCodeAt(0),
+      );
+      imageBytes -= bytes.length;
+      preview.screenshot = bytes;
+    });
+  }
 }

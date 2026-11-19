@@ -339,7 +339,7 @@ export function createExportRunner(deps: ExportRunnerDeps): ExportRunner {
 
     await new Promise((r) => setTimeout(r, FINAL_EXPORT_PREPARE_DELAY_MS));
     throwIfExportCancelled(signal);
-    await captureGeneratedUiScreenshots();
+    if (state.format !== 'markdown') await captureGeneratedUiScreenshots();
     throwIfExportCancelled(signal);
 
     const messages = reader.messages();
@@ -363,7 +363,7 @@ export function createExportRunner(deps: ExportRunnerDeps): ExportRunner {
         throwIfExportCancelled(signal);
         await ensureGeneratedUiScreenshotPermission();
         const selectedIdsForExport = takeSelection();
-        await captureGeneratedUiScreenshots();
+        if (state.format !== 'markdown') await captureGeneratedUiScreenshots();
         throwIfExportCancelled(signal);
 
         const buildTurns = () =>

@@ -248,7 +248,7 @@ describe('Gemini Deep Research export through its registered official plugin', (
       expect.objectContaining({ title: 'Solar report' }),
       expect.objectContaining({
         format: 'pdf',
-        filename: expect.stringMatching(/^Solar-report_2026-11-20_02-47-53_UTC[+-]\d{4}\.pdf$/),
+        filename: 'Solar-report_2026-11-20_02-47-53.pdf',
         layout: 'document',
       }),
     );

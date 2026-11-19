@@ -129,6 +129,13 @@ export async function ensureGeneratedUiScreenshotPermission(
 export async function captureGeneratedUiScreenshots(root: ParentNode = document): Promise<void> {
   removeGeneratedUiScreenshotSections();
   const frames = Array.from(root.querySelectorAll<HTMLIFrameElement>(GENERATED_UI_FRAME_SELECTOR));
+  await captureGeneratedUiFrames(frames, insertGeneratedUiScreenshot);
+}
+
+export async function captureGeneratedUiFrames(
+  frames: readonly HTMLIFrameElement[],
+  save: (frame: HTMLIFrameElement, dataUrl: string) => void,
+): Promise<void> {
   if (frames.length === 0) return;
 
   const hiddenLayers = Array.from(document.querySelectorAll<HTMLElement>(`[${LAYER_ATTR}]`));
@@ -137,14 +144,15 @@ export async function captureGeneratedUiScreenshots(root: ParentNode = document)
 
   try {
     for (const frame of frames) {
-      frame.scrollIntoView({ block: 'center', inline: 'nearest' });
+      if (!frame.isConnected || !frame.getClientRects().length) continue;
+      frame.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'nearest' });
       await new Promise((resolve) => window.setTimeout(resolve, 120));
       const screenshot = await captureVisibleTab();
       if (!screenshot) continue;
       const rect = frame.getBoundingClientRect();
       const cropped = await cropViewportScreenshot(screenshot, rect);
       if (cropped) {
-        insertGeneratedUiScreenshot(frame, cropped);
+        save(frame, cropped);
       } else {
         console.warn('[Gemini Voyager] Generated UI screenshot crop failed:', {
           bottom: rect.bottom,

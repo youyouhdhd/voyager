@@ -1,12 +1,12 @@
 import DOMPurify from 'dompurify';
 
 import type { ChatTurn, ExportWebPreview } from '../types/export';
-import { escapeHtml, escapeHtmlAttribute } from './exportDomPolicy';
+import { escapeHtml } from './exportDomPolicy';
 import { offlineHtmlPage, offlinePreviewFrame, offlinePreviewPage } from './offlinePreviewHtml';
 
 export interface MarkdownWebPreviewFile {
   path: string;
-  html: string;
+  content: string | Uint8Array;
 }
 
 function fillPreviewSlots(value: string, slots: string[], replacements: string[]): string {
@@ -33,9 +33,10 @@ export function removeMarkdownWebPreviewSlots(turns: ChatTurn[]): ChatTurn[] {
   });
 }
 
-/** Keep the inline frame and its fallback link at the captured position. */
+/** Keep the clickable screenshot at the original preview position. */
 export function prepareMarkdownWebPreviews(turns: ChatTurn[], title?: string) {
   const files: MarkdownWebPreviewFile[] = [];
+  let nextPreview = 1;
   const linkedTurns = turns.map((turn) => {
     const content = turn.assistantContent;
     const slots = content?.webPreviewSlots;
@@ -43,21 +44,21 @@ export function prepareMarkdownWebPreviews(turns: ChatTurn[], title?: string) {
     const links = slots.map((marker, index) => {
       const preview = turn.webPreviews?.[index];
       if (!preview || !content.text.includes(marker)) return '';
-      const { title, html } = preview;
+      const { title, html, screenshot } = preview;
       const label = escapeHtml(title.replace(/\s+/g, ' '))
         .replace(/[\\`*_]/g, '\\$&')
         .replace(/\[/g, '&#91;')
         .replace(/\]/g, '&#93;');
       if (!html) return `${label} (web preview unavailable)`;
-      const path = `previews/web-preview-${files.length + 1}.html`;
-      files.push({ path, html: offlinePreviewPage(title, html) });
-      // Readers that impose a stricter sandbox leave the fallback link visible.
-      const fallbackStyle =
-        files.length === 1
-          ? '<style>iframe.gemini-web-preview:not([sandbox~="allow-scripts"]){display:none}</style>\n\n'
-          : '';
-      const frame = `<iframe class="gemini-web-preview" src="${path}" title="${escapeHtmlAttribute(title.replace(/\s+/g, ' '))}" sandbox="allow-scripts" width="100%" height="600" loading="lazy"></iframe>`;
-      return `${fallbackStyle}${frame}\n\n[${label}](${path})`;
+      const base = `previews/web-preview-${nextPreview++}`;
+      files.push({ path: `${base}.html`, content: offlinePreviewPage(title, html) });
+      if (!screenshot?.byteLength) return `[${label}](${base}.html)`;
+      // Linked screenshots must pass the pointer to the anchor instead of the reader's image lightbox.
+      const style = files.some((file) => file.path.endsWith('.png'))
+        ? ''
+        : '<style>a[href*="previews/web-preview-"][href$=".html"]{display:inline-block}a[href*="previews/web-preview-"][href$=".html"]>img{pointer-events:none}</style>\n\n';
+      files.push({ path: `${base}.png`, content: screenshot });
+      return `${style}[![${label}](${base}.png)](${base}.html)`;
     });
     return {
       ...turn,
@@ -65,7 +66,10 @@ export function prepareMarkdownWebPreviews(turns: ChatTurn[], title?: string) {
     };
   });
   if (files.length)
-    files.push({ path: 'report.html', html: renderArchiveReport(turns, title || 'Gemini report') });
+    files.push({
+      path: 'report.html',
+      content: renderArchiveReport(turns, title || 'Gemini report'),
+    });
   return { turns: linkedTurns, files };
 }
 

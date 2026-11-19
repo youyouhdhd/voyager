@@ -114,7 +114,10 @@ export async function packageMarkdownImages(
   options: PackageMarkdownImagesOptions,
 ): Promise<PackagedMarkdownArchive> {
   assertNotAborted(options.signal);
-  const imageUrls = MarkdownFormatter.extractImageUrls(options.markdown);
+  const localPaths = new Set(options.webPreviewFiles?.map((file) => file.path));
+  const imageUrls = MarkdownFormatter.extractImageUrls(options.markdown).filter(
+    (url) => !localPaths.has(url),
+  );
   const imageByteBudget = options.imageByteBudget ?? MAX_MARKDOWN_ARCHIVE_IMAGE_BYTES;
   const sink = new BlobZipSink();
   const writer = new StreamingZipWriter(sink);
@@ -171,7 +174,10 @@ export async function packageMarkdownImages(
   const encoder = new TextEncoder();
   for (const file of options.webPreviewFiles ?? []) {
     assertNotAborted(options.signal);
-    await writer.addStored(file.path, encoder.encode(file.html));
+    await writer.addStored(
+      file.path,
+      typeof file.content === 'string' ? encoder.encode(file.content) : file.content,
+    );
   }
   await writer.addStored(options.markdownEntryName, encoder.encode(packagedMarkdown));
   await writer.finish();
