@@ -247,7 +247,7 @@ describe('Gemini Deep Research export through its registered official plugin', (
       expect.objectContaining({ title: 'Solar report' }),
       expect.objectContaining({
         format: 'pdf',
-        filename: 'Solar-report.pdf',
+        filename: 'Conversation-test__Solar-report.pdf',
         layout: 'document',
       }),
     );
