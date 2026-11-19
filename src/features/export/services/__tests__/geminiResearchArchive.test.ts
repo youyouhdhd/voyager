@@ -5,7 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { matchGeminiPreviewDocument } from '@/core/gemini/previewExport';
 import { appendGeminiResearchThinking } from '@/pages/content/deepResearch/appendThinking';
 import { attachGeminiWebPreviews } from '@/pages/content/export/geminiWebPreviews';
-import * as generatedUiScreenshots from '@/pages/content/export/generatedUiScreenshots';
+import * as previewRenderer from '@/pages/content/export/renderGeminiPreviewImage';
 
 import { ExportFormat } from '../../types/export';
 import { ConversationExportService } from '../ConversationExportService';
@@ -80,13 +80,14 @@ it('keeps references at the original claim and writes the report and matched pre
   vi.spyOn(chrome.runtime, 'sendMessage').mockImplementation(request);
   const png =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aP1kAAAAASUVORK5CYII=';
-  vi.spyOn(generatedUiScreenshots, 'captureGeneratedUiFrames').mockImplementation(
-    async (frames, save) => {
-      save(frames[0]!, `data:image/png;base64,${png}`);
-    },
+  vi.spyOn(previewRenderer, 'renderGeminiPreviewImage').mockResolvedValue(
+    Uint8Array.from(atob(png), (char) => char.charCodeAt(0)),
   );
   await attachGeminiWebPreviews([turn], { format: ExportFormat.MARKDOWN });
   expect(request.mock.calls[0]?.[0]).toMatchObject({ payload: [previewUrl] });
+  expect(previewRenderer.renderGeminiPreviewImage).toHaveBeenCalledWith(
+    '<html><body><button>Change</button></body></html>',
+  );
 
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   const download = vi.fn((_: Blob) => 'blob:report');
@@ -131,7 +132,10 @@ it('keeps references at the original claim and writes the report and matched pre
   expect(paragraph?.previousElementSibling?.previousElementSibling?.textContent).toBe(
     'Before the chart.',
   );
-  expect(paragraph?.nextElementSibling?.textContent).toBe('After the chart.');
+  const caption = paragraph?.nextElementSibling?.querySelector('a');
+  expect(caption?.textContent).toBe('A chart [1] · Interactive HTML');
+  expect(caption?.getAttribute('href')).toBe('previews/web-preview-1.html');
+  expect(paragraph?.nextElementSibling?.nextElementSibling?.textContent).toBe('After the chart.');
   expect(await zip.file('previews/web-preview-1.png')?.async('base64')).toBe(png);
   expect(markdown).not.toContain('data-gv-export-preview');
   expect(zip.file('previews/web-preview-2.html')).toBeNull();

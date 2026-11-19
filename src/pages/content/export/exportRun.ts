@@ -361,7 +361,7 @@ export function createExportRunner(deps: ExportRunnerDeps): ExportRunner {
       let hideProgress: (() => void) | null = null;
       try {
         throwIfExportCancelled(signal);
-        await ensureGeneratedUiScreenshotPermission();
+        if (state.format !== 'markdown') await ensureGeneratedUiScreenshotPermission();
         const selectedIdsForExport = takeSelection();
         if (state.format !== 'markdown') await captureGeneratedUiScreenshots();
         throwIfExportCancelled(signal);

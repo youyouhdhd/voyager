@@ -2,7 +2,7 @@ import { GEMINI_PREVIEW_EXPORT, isGeminiPreviewSnapshot } from '@/core/gemini/pr
 import { geminiPreviewFrames } from '@/features/export/services/geminiPreviewSlots';
 import type { ChatTurn, ExportOptions, ExportWebPreview } from '@/features/export/types/export';
 
-import { captureGeneratedUiFrames } from './generatedUiScreenshots';
+import { renderGeminiPreviewImage } from './renderGeminiPreviewImage';
 
 interface PreviewSource {
   url: string;
@@ -46,7 +46,7 @@ export async function attachGeminiWebPreviews(
       ? response.filter(isGeminiPreviewSnapshot).map((entry) => [entry.url, entry])
       : [],
   );
-  const toCapture = new Map<HTMLIFrameElement, ExportWebPreview>();
+  const toRender: (ExportWebPreview & { html: string })[] = [];
   let remaining = 8_000_000;
   turns.forEach((turn, index) => {
     const frames = framesByTurn[index];
@@ -65,26 +65,18 @@ export async function attachGeminiWebPreviews(
       if (!html || html.length > remaining) return { title };
       remaining -= html.length;
       const preview = { title, html };
-      if (options.format === 'markdown') toCapture.set(frame, preview);
+      if (options.format === 'markdown') toRender.push(preview);
       return preview;
     });
   });
   let imageBytes = 16 * 1024 * 1024;
-  if (toCapture.size) {
-    await captureGeneratedUiFrames([...toCapture.keys()], (frame, dataUrl) => {
-      const preview = toCapture.get(frame);
-      const prefix = 'data:image/png;base64,';
-      if (
-        !preview ||
-        !dataUrl.startsWith(prefix) ||
-        dataUrl.length > (imageBytes * 4) / 3 + prefix.length
-      )
-        return;
-      const bytes = Uint8Array.from(atob(dataUrl.slice(prefix.length)), (char) =>
-        char.charCodeAt(0),
-      );
+  const deadline = Date.now() + 15_000;
+  for (const preview of toRender) {
+    if (imageBytes <= 0 || Date.now() >= deadline) break;
+    const bytes = await renderGeminiPreviewImage(preview.html);
+    if (bytes && bytes.length <= imageBytes) {
       imageBytes -= bytes.length;
-      preview.screenshot = bytes;
-    });
+      preview.image = bytes;
+    }
   }
 }

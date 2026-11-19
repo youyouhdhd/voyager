@@ -338,7 +338,7 @@ export function createExportEntrypoint(exportSite: ExportSite) {
           async (signal) => {
             await speakerLabelPreferenceSaver.flush();
             if (signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
-            await ensureGeneratedUiScreenshotPermission();
+            if (format !== 'markdown') await ensureGeneratedUiScreenshotPermission();
             if (format === 'image') {
               await saveImageExportWidth(imageWidth);
             }

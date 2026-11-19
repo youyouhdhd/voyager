@@ -132,7 +132,7 @@ export async function captureGeneratedUiScreenshots(root: ParentNode = document)
   await captureGeneratedUiFrames(frames, insertGeneratedUiScreenshot);
 }
 
-export async function captureGeneratedUiFrames(
+async function captureGeneratedUiFrames(
   frames: readonly HTMLIFrameElement[],
   save: (frame: HTMLIFrameElement, dataUrl: string) => void,
 ): Promise<void> {

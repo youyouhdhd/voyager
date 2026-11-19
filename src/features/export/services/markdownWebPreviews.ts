@@ -33,7 +33,7 @@ export function removeMarkdownWebPreviewSlots(turns: ChatTurn[]): ChatTurn[] {
   });
 }
 
-/** Keep the clickable screenshot at the original preview position. */
+/** Keep the linked image and title at the original preview position. */
 export function prepareMarkdownWebPreviews(turns: ChatTurn[], title?: string) {
   const files: MarkdownWebPreviewFile[] = [];
   let nextPreview = 1;
@@ -44,7 +44,7 @@ export function prepareMarkdownWebPreviews(turns: ChatTurn[], title?: string) {
     const links = slots.map((marker, index) => {
       const preview = turn.webPreviews?.[index];
       if (!preview || !content.text.includes(marker)) return '';
-      const { title, html, screenshot } = preview;
+      const { title, html, image } = preview;
       const label = escapeHtml(title.replace(/\s+/g, ' '))
         .replace(/[\\`*_]/g, '\\$&')
         .replace(/\[/g, '&#91;')
@@ -52,13 +52,14 @@ export function prepareMarkdownWebPreviews(turns: ChatTurn[], title?: string) {
       if (!html) return `${label} (web preview unavailable)`;
       const base = `previews/web-preview-${nextPreview++}`;
       files.push({ path: `${base}.html`, content: offlinePreviewPage(title, html) });
-      if (!screenshot?.byteLength) return `[${label}](${base}.html)`;
-      // Linked screenshots must pass the pointer to the anchor instead of the reader's image lightbox.
+      const link = `[${label} · Interactive HTML](${base}.html)`;
+      if (!image?.byteLength) return link;
+      // Linked images pass the pointer to the anchor instead of the reader's image lightbox.
       const style = files.some((file) => file.path.endsWith('.png'))
         ? ''
         : '<style>a[href*="previews/web-preview-"][href$=".html"]{display:inline-block}a[href*="previews/web-preview-"][href$=".html"]>img{pointer-events:none}</style>\n\n';
-      files.push({ path: `${base}.png`, content: screenshot });
-      return `${style}[![${label}](${base}.png)](${base}.html)`;
+      files.push({ path: `${base}.png`, content: image });
+      return `${style}[![${label}](${base}.png)](${base}.html)\n\n${link}`;
     });
     return {
       ...turn,

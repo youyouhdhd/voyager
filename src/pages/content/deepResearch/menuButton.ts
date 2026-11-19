@@ -268,10 +268,8 @@ function handleSaveReport(messages: Translation): void {
         const visual = format === 'pdf' || format === 'image';
         const progress = showExportProgress(exportingProgressText(t));
         try {
-          if (visual || (format === 'markdown' && !textOnly)) {
-            await ensureGeneratedUiScreenshotPermission(reportRoot);
-          }
           if (visual) {
+            await ensureGeneratedUiScreenshotPermission(reportRoot);
             await captureGeneratedUiScreenshots(reportRoot);
           }
           if (format === 'image') {
