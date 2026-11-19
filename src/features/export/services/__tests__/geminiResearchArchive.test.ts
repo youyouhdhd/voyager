@@ -45,7 +45,9 @@ it('keeps references at the original claim and writes the report and matched pre
       <p>No destination<source-footnote><sup data-turn-source-index="1"></sup></source-footnote>.</p>
       <ul><li>Evidence<sup data-turn-source-index="2"></sup></li></ul>
       <table><tr><th>Finding</th></tr><tr><td>Evidence<sup data-turn-source-index="2"></sup></td></tr></table>
-      <web-preview><iframe src="${previewUrl}"></iframe></web-preview>
+      <p>Before the chart.</p>
+      <div class="attachment-container"><response-element><web-preview><iframe src="${previewUrl}"></iframe></web-preview></response-element></div>
+      <p>After the chart.</p>
     </div></message-content>
     <deep-research-source-lists>
       <div class="used-sources"><browse-web-item></browse-web-item>
@@ -94,7 +96,7 @@ it('keeps references at the original claim and writes the report and matched pre
   });
   const zip = await JSZip.loadAsync(download.mock.calls[0]![0]);
   const markdown = await zip.file('Research.md')?.async('string');
-  expect(markdown).toContain('Claim[&#91;2&#93;](<https://example.test/used>).');
+  expect(markdown).toContain('Claim[[2]](<https://example.test/used>).');
   const renderedMarkdown = new DOMParser().parseFromString(
     marked.parse(markdown ?? '', { async: false }),
     'text/html',
@@ -107,14 +109,17 @@ it('keeps references at the original claim and writes the report and matched pre
       /<sup><a href="https:\/\/example\.test\/used">\[2\]<\/a><\/sup>/g,
     ),
   ).toHaveLength(3);
-  expect(markdown).toContain('No destination&#91;1&#93;.');
-  expect(markdown).toContain('Evidence[&#91;2&#93;](<https://example.test/used>)');
+  expect(markdown).toContain('No destination[1].');
+  expect(markdown).toContain('Evidence[[2]](<https://example.test/used>)');
   expect(markdown).toContain('2. [Used (original)](<https://example.test/used>)');
   expect(markdown).toContain('https://example.test/unused');
   expect(markdown).toContain('## Thinking\n\n#### Check evidence\n\nReviewed the patent.');
   expect(markdown).toContain('[Research notes](<https://example.test/research>)');
   expect(markdown).toContain('(report.html)');
-  expect(markdown).toContain('[A chart \\[1\\]](previews/web-preview-1.html)');
+  expect(markdown).toContain(
+    'Before the chart.\n\n[A chart &#91;1&#93;](previews/web-preview-1.html)\n\nAfter the chart.',
+  );
+  expect(markdown).not.toContain('data-gv-export-preview');
   expect(zip.file('previews/web-preview-2.html')).toBeNull();
   expect(await zip.file('previews/web-preview-1.html')?.async('string')).toContain(
     'sandbox="allow-scripts"',
@@ -124,9 +129,14 @@ it('keeps references at the original claim and writes the report and matched pre
   expect(htmlReport).toContain('<a href="https://example.test/used">[2]</a>');
   expect(htmlReport).toContain('sandbox="allow-scripts" srcdoc=');
   expect(htmlReport).toContain('&lt;button&gt;Change&lt;/button&gt;');
+  expect(htmlReport).toMatch(
+    /<p>Before the chart\.<\/p>\s*<figure[^>]*>.*<\/figure>\s*<p>After the chart\.<\/p>/s,
+  );
+  expect(htmlReport).not.toContain('data-gv-export-preview');
 
   const textDownload = vi.spyOn(MarkdownFormatter, 'download').mockImplementation(() => {});
   await ConversationExportService.export([turn], metadata, { ...options, markdownTextOnly: true });
   expect(textDownload.mock.calls[0]?.[0]).toContain('https://example.test/used');
   expect(textDownload.mock.calls[0]?.[0]).not.toContain('previews/');
+  expect(textDownload.mock.calls[0]?.[0]).not.toContain('data-gv-export-preview');
 });

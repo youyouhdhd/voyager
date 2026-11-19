@@ -9,26 +9,53 @@ export interface MarkdownWebPreviewFile {
   html: string;
 }
 
-/** Append links beside each selected turn and collect a single set of ZIP entries. */
+function fillPreviewSlots(value: string, slots: string[], replacements: string[]): string {
+  return slots.reduce(
+    (result, marker, index) => result.replaceAll(marker, () => replacements[index] ?? ''),
+    value,
+  );
+}
+
+export function removeMarkdownWebPreviewSlots(turns: ChatTurn[]): ChatTurn[] {
+  if (!turns.some((turn) => turn.assistantContent?.webPreviewSlots?.length)) return turns;
+  return turns.map((turn) => {
+    const content = turn.assistantContent;
+    const slots = content?.webPreviewSlots;
+    if (!content || !slots?.length) return turn;
+    return {
+      ...turn,
+      assistantContent: {
+        ...content,
+        text: fillPreviewSlots(content.text, slots, []),
+        html: fillPreviewSlots(content.html, slots, []),
+      },
+    };
+  });
+}
+
+/** Write the local link and offline embed at the same captured position. */
 export function prepareMarkdownWebPreviews(turns: ChatTurn[], title?: string) {
   const files: MarkdownWebPreviewFile[] = [];
   const linkedTurns = turns.map((turn) => {
-    if (!turn.webPreviews?.length) return turn;
-    const links = turn.webPreviews.map(({ title, html }) => {
-      const label = escapeHtml(title.replace(/\s+/g, ' ')).replace(/[\\`*_[\]]/g, '\\$&');
-      if (!html) return `- ${label} (web preview unavailable)`;
+    const content = turn.assistantContent;
+    const slots = content?.webPreviewSlots;
+    if (!content || !slots?.length) return turn;
+    const links = slots.map((marker, index) => {
+      const preview = turn.webPreviews?.[index];
+      if (!preview || !content.text.includes(marker)) return '';
+      const { title, html } = preview;
+      const label = escapeHtml(title.replace(/\s+/g, ' '))
+        .replace(/[\\`*_]/g, '\\$&')
+        .replace(/\[/g, '&#91;')
+        .replace(/\]/g, '&#93;');
+      if (!html) return `${label} (web preview unavailable)`;
       const path = `previews/web-preview-${files.length + 1}.html`;
       files.push({ path, html: offlinePreviewPage(title, html) });
-      return `- [${label}](${path})`;
+      return `[${label}](${path})`;
     });
-    const content = turn.assistantContent?.text || turn.assistant;
-    const text = [content, `#### Generated webpages\n\n${links.join('\n')}`]
-      .filter(Boolean)
-      .join('\n\n');
     return {
       ...turn,
-      assistant: text,
-      assistantContent: turn.assistantContent ? { ...turn.assistantContent, text } : undefined,
+      assistantContent: { ...content, text: fillPreviewSlots(content.text, slots, links) },
     };
   });
   if (files.length)
@@ -51,14 +78,17 @@ function renderArchiveReport(turns: ChatTurn[], title: string): string {
       const answer =
         turn.assistantContent?.html ||
         (turn.assistant ? `<p>${escapeHtml(turn.assistant)}</p>` : '');
-      const content = DOMPurify.sanitize(`${user}${answer}`);
-      const frames = turn.webPreviews
-        ?.map(({ title: label, html }) => {
-          const heading = `<h3>${escapeHtml(label)}</h3>`;
-          return html ? `<section>${heading}${offlinePreviewFrame(label, html)}</section>` : '';
-        })
-        .join('');
-      return `<article>${content}${frames ? `<section><h2>Generated webpages</h2>${frames}</section>` : ''}</article>`;
+      const slots = turn.assistantContent?.webPreviewSlots ?? [];
+      const frames = slots.map((_, index) => {
+        const preview = turn.webPreviews?.[index];
+        if (!preview) return '';
+        const label = escapeHtml(preview.title);
+        return preview.html
+          ? `<figure class="web-preview"><figcaption>${label}</figcaption>${offlinePreviewFrame(preview.title, preview.html)}</figure>`
+          : `<p>${label} (web preview unavailable)</p>`;
+      });
+      const content = fillPreviewSlots(DOMPurify.sanitize(`${user}${answer}`), slots, frames);
+      return `<article>${content}</article>`;
     })
     .join('\n');
   return offlineHtmlPage(
@@ -68,6 +98,7 @@ function renderArchiveReport(turns: ChatTurn[], title: string): string {
     :root{color-scheme:light dark;font:16px/1.65 system-ui,sans-serif}
     main{max-width:1120px;margin:auto;padding:1.5rem}a{overflow-wrap:anywhere}img{max-width:100%}
     pre,table{display:block;overflow:auto}td,th{padding:.35rem;border:1px solid #8886}
+    .web-preview{margin:1.5rem 0}.web-preview figcaption{margin-bottom:.4rem;font-weight:600}
     .preview-frame{display:block;width:100%;height:80vh;border:1px solid #8886;background:white}`,
   );
 }

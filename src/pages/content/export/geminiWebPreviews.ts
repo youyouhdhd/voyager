@@ -1,9 +1,5 @@
-import {
-  GEMINI_PREVIEW_EXPORT,
-  GEMINI_PREVIEW_FRAME,
-  isGeminiPreviewSnapshot,
-  isGeminiPreviewUrl,
-} from '@/core/gemini/previewExport';
+import { GEMINI_PREVIEW_EXPORT, isGeminiPreviewSnapshot } from '@/core/gemini/previewExport';
+import { geminiPreviewFrames } from '@/features/export/services/geminiPreviewSlots';
 import type { ChatTurn, ExportOptions } from '@/features/export/types/export';
 
 interface PreviewSource {
@@ -26,11 +22,7 @@ export async function attachGeminiWebPreviews(
 ): Promise<void> {
   if (options.format !== 'json' && (options.format !== 'markdown' || options.markdownTextOnly))
     return;
-  const framesByTurn = turns.map((turn) =>
-    Array.from(
-      turn.assistantElement?.querySelectorAll<HTMLIFrameElement>(GEMINI_PREVIEW_FRAME) ?? [],
-    ).filter((frame) => isGeminiPreviewUrl(frame.src)),
-  );
+  const framesByTurn = turns.map((turn) => geminiPreviewFrames(turn.assistantElement));
   const urls = [
     ...new Set(
       framesByTurn

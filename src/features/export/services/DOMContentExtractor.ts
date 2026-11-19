@@ -30,6 +30,7 @@ import type { ProcessedInlineContent } from './exportRichText';
 import { getExportReadProfiles } from './exportSiteData';
 import { extractUserContent } from './exportUserContent';
 import { processYouTubeCovers } from './exportYouTubeCovers';
+import { readGeminiPreviewSlots } from './geminiPreviewSlots';
 import { readGeminiResearchSources } from './geminiResearchSources';
 
 export { processYouTubeCovers } from './exportYouTubeCovers';
@@ -42,6 +43,7 @@ export interface ExtractedContent {
   hasFormulas: boolean;
   hasTables: boolean;
   hasCode: boolean;
+  webPreviewSlots?: string[];
 }
 
 export interface ContentExtractor {
@@ -78,8 +80,14 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
     const codeProfile = dialect.resolveCodeProfile?.(messageContent) ?? DEFAULT_EXPORT_CODE_PROFILE;
     const sources =
       dialect.siteId === 'gemini' ? readGeminiResearchSources(messageContent) : undefined;
+    const previews = dialect.siteId === 'gemini' ? readGeminiPreviewSlots(element) : undefined;
+    if (previews) result.webPreviewSlots = previews.slots;
     const contentDialect = sources
-      ? { ...dialect, extractInlineReference: sources.citation }
+      ? {
+          ...dialect,
+          extractInlineReference: sources.citation,
+          webPreviewMarkers: previews?.markersFor,
+        }
       : dialect;
 
     // Don't clone! Angular custom elements may lose content when cloned
@@ -282,6 +290,12 @@ export function createContentExtractor(dialect: ExportContentDialect): ContentEx
 
     for (const child of children) {
       const tagName = child.tagName.toLowerCase();
+      const markers = dialect.webPreviewMarkers?.(child);
+      if (markers?.length) {
+        htmlParts.push(...markers);
+        textParts.push(`\n\n${markers.join('\n\n')}\n\n`);
+        continue;
+      }
 
       // Skip certain elements
       if (shouldSkipElement(child)) {

@@ -29,7 +29,10 @@ interface SerializedTable {
  * which keeps formulas as `$…$` but drops emphasis and code markers.
  */
 export type InlineTextTarget = 'markdown' | 'markdownTable' | 'plain';
-type InlineDialect = Pick<ExportContentDialect, 'extractInlineFormula' | 'extractInlineReference'>;
+type InlineDialect = Pick<
+  ExportContentDialect,
+  'extractInlineFormula' | 'extractInlineReference' | 'webPreviewMarkers'
+>;
 
 function renderClonedReferences(root: HTMLElement, adapter: InlineDialect): void {
   if (!adapter.extractInlineReference) return;
@@ -107,6 +110,13 @@ export function processInlineContent(
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as Element;
+
+      const markers = adapter.webPreviewMarkers?.(el);
+      if (markers?.length) {
+        htmlParts.push(...markers);
+        if (target === 'markdown') textParts.push(`\n\n${markers.join('\n\n')}\n\n`);
+        return;
+      }
 
       if (shouldSkipElement(el)) {
         return;

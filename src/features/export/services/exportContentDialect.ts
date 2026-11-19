@@ -68,4 +68,5 @@ export interface ExportContentDialect {
   extractInlineReference?: (
     element: Element,
   ) => { html: string; text: string; plain: string; href?: string } | undefined;
+  webPreviewMarkers?: (element: Element) => string[] | undefined;
 }

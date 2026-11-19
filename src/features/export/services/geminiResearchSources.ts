@@ -42,11 +42,9 @@ export function readGeminiResearchSources(root: HTMLElement) {
     // Gemini uses the one-based index in the used-sources list, including slots without a link.
     const url = groups[0]?.links[Number(index) - 1]?.url;
     const plain = `[${index}]`;
-    // Backslash brackets are block-math delimiters in Markdown Preview Enhanced.
-    const label = `&#91;${index}&#93;`;
     return {
       html: `<sup>${url ? `<a href="${escapeHtmlAttribute(url)}">${plain}</a>` : plain}</sup>`,
-      text: url ? `[${label}](<${url.replace(/[<>|\\]/g, encodeURIComponent)}>)` : label,
+      text: url ? `[${plain}](<${url.replace(/[<>|\\]/g, encodeURIComponent)}>)` : plain,
       plain,
       href: url || undefined,
     };

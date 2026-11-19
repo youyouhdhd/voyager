@@ -204,8 +204,21 @@ function sanitizeFilenamePart(value: string): string {
   return cleaned || 'deep-research-report';
 }
 
-function buildReportFilename(format: ExportFormat, title: string): string {
-  const base = sanitizeFilenamePart(title || 'deep-research-report');
+function buildReportFilename(
+  format: ExportFormat,
+  title: string,
+  conversationTitle: string,
+): string {
+  const report = sanitizeFilenamePart(title || 'deep-research-report');
+  const label = conversationTitle
+    .replace(/(?:^|\s*[-–—|]\s*)(?:Google Gemini|Gemini)\s*$/i, '')
+    .trim();
+  const conversation =
+    label && label !== 'Untitled Conversation' ? sanitizeFilenamePart(label) : '';
+  const base =
+    conversation && conversation !== report
+      ? `${conversation.slice(0, 50)}__${report}`.slice(0, 80)
+      : report;
   if (format === 'json') return `${base}.json`;
   if (format === 'markdown') return `${base}.md`;
   if (format === 'pdf') return `${base}.pdf`;
@@ -221,6 +234,8 @@ function handleSaveReport(messages: Translation): void {
     }
 
     const reportTitle = extractDeepResearchReportTitle(reportRoot);
+    const adapter = resolveExportAdapter();
+    const conversationTitle = adapter.extractConversationTitle();
     const metadata: ConversationMetadata = {
       url: location.href,
       exportedAt: new Date().toISOString(),
@@ -259,11 +274,9 @@ function handleSaveReport(messages: Translation): void {
           if (format === 'image') {
             await saveImageExportWidth(imageWidth);
           }
-          const filename = buildReportFilename(format, reportTitle);
+          const filename = buildReportFilename(format, reportTitle, conversationTitle);
           // Deep Research is a Gemini-only surface; the Gemini dialect renders its $$ formulas.
-          const turns = [
-            extractTurnContent(reportTurn, createContentExtractor(resolveExportAdapter())),
-          ];
+          const turns = [extractTurnContent(reportTurn, createContentExtractor(adapter))];
           appendGeminiResearchThinking(turns);
           await attachGeminiWebPreviews(turns, { format, markdownTextOnly: textOnly });
           const resultPromise = ConversationExportService.export(turns, metadata, {

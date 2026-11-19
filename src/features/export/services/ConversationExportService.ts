@@ -23,6 +23,7 @@ import { stripMarkdownImages } from './markdownTextOnly';
 import {
   type MarkdownWebPreviewFile,
   prepareMarkdownWebPreviews,
+  removeMarkdownWebPreviewSlots,
   serializeJsonWebPreviews,
 } from './markdownWebPreviews';
 
@@ -43,12 +44,16 @@ export class ConversationExportService {
    * Export conversation in specified format
    */
   static async export(
-    turns: ChatTurn[],
+    input: ChatTurn[],
     metadata: ConversationMetadata,
     options: ExportOptions,
   ): Promise<ExportResult> {
     try {
       this.assertNotAborted(options.signal);
+      const turns =
+        options.format === 'markdown' && !options.markdownTextOnly
+          ? input
+          : removeMarkdownWebPreviewSlots(input);
       const layout: ExportLayout = options.layout ?? 'conversation';
       if (layout === 'document') {
         return await this.exportDocument(turns, metadata, options);
