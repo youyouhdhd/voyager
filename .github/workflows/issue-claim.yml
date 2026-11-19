@@ -10,6 +10,7 @@ jobs:
   enforce-claim-policy:
     runs-on: ubuntu-latest
     if: >-
+      github.repository == 'voyager-crew/voyager' &&
       github.event.issue.pull_request == null &&
       (
         (github.event_name == 'issues' && github.event.label.name == 'community-only') ||

@@ -6,6 +6,7 @@ on:
 
 jobs:
   validate:
+    if: github.repository == 'voyager-crew/voyager'
     runs-on: ubuntu-latest
     permissions:
       contents: read

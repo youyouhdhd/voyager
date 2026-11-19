@@ -5,6 +5,8 @@ import { resolve } from 'path';
 import { Plugin, defineConfig, mergeConfig } from 'vite';
 
 import { selfContainedContentScripts } from './custom-vite-plugins';
+import devManifest from './manifest.dev.json';
+import manifest from './manifest.json';
 import {
   collectBundleAssetPaths,
   collectStaticAssetPaths,
@@ -130,6 +132,7 @@ const chromeMainWorldObservers = [
 
 export const chromeManifest = {
   ...baseManifest,
+  version: (isDev ? devManifest : manifest).version,
   // Browser-managed MAIN-world scripts avoid Gemini's Trusted Types/CSP
   // blocking the old DOM <script src="chrome-extension://..."> bridge. Edge
   // builds reuse this manifest, so keep the observers statically registered.
